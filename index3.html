@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer Pro V2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-r from-pink-200 to-yellow-200 h-screen">
+    <!-- Contenedor Principal -->
+    <div class="max-w-4xl mx-auto p-6 mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Panel Izquierdo (Temporizador) -->
+        <div class="bg-white rounded-3xl shadow-2xl p-8 order-2 md:order-1">
+            <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 mb-8">
+                🕒 Temporizador
+            </h1>
+            
+            <!-- Selector de duración -->
+            <div class="flex items-center space-x-4 mb-8">
+                <label class="font-semibold text-gray-700">Duración estudio:</label>
+                <select id="durationSelect" class="border-2 border-red-300 rounded-lg px-3 py-2 focus:outline-none focus:border-red-500">
+                    <option value="1" selected>25 min (Clásico)</option>
+                    <option value="30">30 min (Intensivo)</option>
+                    <option value="45">45 min (Profundo)</option>
+                    <option value="60">60 min (Maratón)</option>
+                </select>
+            </div>
+
+            <!-- Controles y Timer -->
+            <div class="flex flex-col items-center space-y-6 mb-8">
+                <div class="flex justify-center space-x-6">
+                    <button id="startBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all">
+                        <i class="fas fa-play fa-lg"></i>
+                    </button>
+                    <button id="pauseBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all">
+                        <i class="fas fa-pause fa-lg"></i>
+                    </button>
+                    <button id="resetBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all">
+                        <i class="fas fa-redo-alt fa-lg"></i>
+                    </button>
+                </div>
+                <h2 id="timer" class="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500">
+                    25:00
+                </h2>
+            </div>
+
+            <!-- Indicador de estado -->
+            <div class="flex justify-center items-center space-x-4">
+                <div id="statusIndicator" class="w-4 h-4 bg-red-500 rounded-full"></div>
+                <p id="statusText" class="text-xl font-semibold text-gray-700">Tiempo de trabajo</p>
+            </div>
+        </div>
+
+        <!-- Panel Derecho (Métricas y Tips) -->
+        <div class="bg-white rounded-3xl shadow-2xl p-8 order-1 md:order-2">
+            <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-500 mb-6">
+                📊 Métricas y Bienestar
+            </h2>
+            
+            <!-- Métricas -->
+            <div class="grid grid-cols-1 gap-4 mb-8">
+                <div class="bg-red-100 p-4 rounded-2xl shadow-md">
+                    <h3 class="text-xl font-semibold text-red-600 mb-2"> Hoy 🌞</h3>
+                    <p class="text-3xl font-bold text-red-700" id="todayPomodoros">0</p>
+                    <p class="text-gray-600">Pomodoros</p>
+                    <p class="text-gray-600 mt-2" id="todayHours">0h 0m</p>
+                </div>
+                <div class="bg-blue-100 p-4 rounded-2xl shadow-md">
+                    <h3 class="text-xl font-semibold text-blue-600 mb-2">Ayer 🌙</h3>
+                    <p class="text-3xl font-bold text-blue-700" id="yesterdayPomodoros">0</p>
+                    <p class="text-gray-600">Pomodoros</p>
+                    <p class="text-gray-600 mt-2" id="yesterdayHours">0h 0m</p>
+                </div>
+            </div>
+
+            <!-- Tips de Respiración -->
+            <div id="breathTipContainer" class="hidden bg-green-100 p-4 rounded-2xl shadow-md">
+                <h3 class="text-xl font-semibold text-green-600 mb-3">🌱 Técnica de respiración</h3>
+                <p id="breathTip" class="text-gray-700"></p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="workAlarm" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm.ogg"></audio>
+    <audio id="breakAlarm" src="https://actions.google.com/sounds/v1/alarms/wind_chimes.ogg"></audio>
+
+    <script>
+        let timerInterval;
+        let timeLeft;
+        let isWorkTime = true;
+        let pomodoroCount = 0;
+        let isPaused = true;
+        let selectedDuration = 25;
+        const breathTips = [
+            "Respiración 4-7-8: Inhala 4s, retén 7s, exhala 8s",
+            "Respiración alterna: Tapa una fosa nasal alternativamente",
+            "Respiración abdominal: Inhala expandiendo el abdomen",
+            "Respiración cuadrada: 4s inhala, 4s retén, 4s exhala"
+        ];
+
+        const today = new Date().toISOString().split('T')[0];
+        let metrics = JSON.parse(localStorage.getItem('pomodoroMetrics')) || {};
+
+        function initialize() {
+            timeLeft = selectedDuration * 60;
+            updateTimerDisplay();
+            loadMetrics();
+            updateMetricsDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function startTimer() {
+            if (isPaused) {
+                isPaused = false;
+                selectedDuration = parseInt(document.getElementById('durationSelect').value);
+                timerInterval = setInterval(() => {
+                    if (timeLeft > 0) {
+                        timeLeft--;
+                        updateTimerDisplay();
+                    } else {
+                        clearInterval(timerInterval);
+                        handleTimerEnd();
+                    }
+                }, 1000);
+            }
+        }
+
+        function handleTimerEnd() {
+            const alarm = isWorkTime ? document.getElementById('workAlarm') 
+                                    : document.getElementById('breakAlarm');
+            alarm.play();
+
+            if (isWorkTime) {
+                pomodoroCount++;
+                showBreathTip();
+                updateMetrics();
+            } else {
+                document.getElementById('breathTipContainer').classList.add('hidden');
+            }
+
+            // Alternar estado y reiniciar automáticamente
+            isWorkTime = !isWorkTime;
+            timeLeft = isWorkTime ? selectedDuration * 60 : 5 * 60;
+            updateStatusIndicator();
+            startTimer(); // Reinicia automáticamente
+        }
+
+        function updateStatusIndicator() {
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            
+            if (isWorkTime) {
+                statusText.textContent = 'Tiempo de trabajo';
+                statusIndicator.className = 'w-4 h-4 bg-red-500 rounded-full';
+            } else {
+                statusText.textContent = 'Tiempo de descanso';
+                statusIndicator.className = 'w-4 h-4 bg-green-500 rounded-full';
+            }
+        }
+
+        function showBreathTip() {
+            const tip = breathTips[Math.floor(Math.random() * breathTips.length)];
+            document.getElementById('breathTip').textContent = tip;
+            document.getElementById('breathTipContainer').classList.remove('hidden');
+        }
+
+        function updateMetrics() {
+            const todayData = metrics[today] || { pomodoros: 0, time: 0 };
+            todayData.pomodoros += 1;
+            todayData.time += selectedDuration;
+            metrics[today] = todayData;
+            localStorage.setItem('pomodoroMetrics', JSON.stringify(metrics));
+            updateMetricsDisplay();
+        }
+
+        function updateMetricsDisplay() {
+            const todayData = metrics[today] || {};
+            document.getElementById('todayPomodoros').textContent = todayData.pomodoros || 0;
+            document.getElementById('todayHours').textContent = 
+                `${Math.floor(todayData.time / 60)}h ${todayData.time % 60}m`;
+
+            const yesterday = getPreviousDay();
+            const yesterdayData = metrics[yesterday] || {};
+            document.getElementById('yesterdayPomodoros').textContent = yesterdayData.pomodoros || 0;
+            document.getElementById('yesterdayHours').textContent = 
+                `${Math.floor(yesterdayData.time / 60)}h ${yesterdayData.time % 60}m`;
+        }
+
+        function getPreviousDay() {
+            const date = new Date();
+            date.setDate(date.getDate() - 1);
+            return date.toISOString().split('T')[0];
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            isPaused = true;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isWorkTime = true;
+            timeLeft = selectedDuration * 60;
+            pomodoroCount = 0;
+            isPaused = true;
+            initialize();
+            document.getElementById('breathTipContainer').classList.add('hidden');
+        }
+
+        // Event Listeners
+        document.getElementById('startBtn').addEventListener('click', startTimer);
+        document.getElementById('pauseBtn').addEventListener('click', pauseTimer);
+        document.getElementById('resetBtn').addEventListener('click', resetTimer);
+        document.getElementById('durationSelect').addEventListener('change', (e) => {
+            selectedDuration = parseInt(e.target.value);
+            resetTimer();
+        });
+
+        initialize();
+    </script>
+</body>
+</html>

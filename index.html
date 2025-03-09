@@ -20,7 +20,7 @@
             <div class="flex items-center space-x-4 mb-8">
                 <label class="font-semibold text-gray-700">Duración estudio:</label>
                 <select id="durationSelect" class="border-2 border-red-300 rounded-lg px-3 py-2 focus:outline-none focus:border-red-500">
-                    <option value="1" selected>25 min (Clásico)</option>
+                    <option value="25" selected>25 min (Clásico)</option>
                     <option value="30">30 min (Intensivo)</option>
                     <option value="45">45 min (Profundo)</option>
                     <option value="60">60 min (Maratón)</option>
@@ -147,7 +147,7 @@
 
             // Alternar estado y reiniciar automáticamente
             isWorkTime = !isWorkTime;
-            timeLeft = isWorkTime ? selectedDuration * 60 : 1 * 60;
+            timeLeft = isWorkTime ? selectedDuration * 60 : 5 * 60;
             updateStatusIndicator();
             startTimer(); // Reinicia automáticamente
         }
